@@ -7,15 +7,15 @@ from sentence_transformers import SentenceTransformer
 
 @dataclass
 class SearchResults:
-    """Container for search results with metadata"""
-    documents: List[str]
-    metadata: List[Dict[str, Any]]
-    distances: List[float]
-    error: Optional[str] = None
+    """包含元数据的搜索结果容器"""
+    documents: List[str]  # 文档内容列表
+    metadata: List[Dict[str, Any]]  # 元数据列表
+    distances: List[float]  # 距离分数列表
+    error: Optional[str] = None  # 错误消息（如果有）
     
     @classmethod
     def from_chroma(cls, chroma_results: Dict) -> 'SearchResults':
-        """Create SearchResults from ChromaDB query results"""
+        """从ChromaDB查询结果创建SearchResults"""
         return cls(
             documents=chroma_results['documents'][0] if chroma_results['documents'] else [],
             metadata=chroma_results['metadatas'][0] if chroma_results['metadatas'] else [],
@@ -24,35 +24,43 @@ class SearchResults:
     
     @classmethod
     def empty(cls, error_msg: str) -> 'SearchResults':
-        """Create empty results with error message"""
+        """创建带有错误消息的空结果"""
         return cls(documents=[], metadata=[], distances=[], error=error_msg)
     
     def is_empty(self) -> bool:
-        """Check if results are empty"""
+        """检查结果是否为空"""
         return len(self.documents) == 0
 
 class VectorStore:
-    """Vector storage using ChromaDB for course content and metadata"""
+    """使用ChromaDB进行课程内容和元数据的向量存储"""
     
     def __init__(self, chroma_path: str, embedding_model: str, max_results: int = 5):
+        """
+        初始化向量存储
+        
+        Args:
+            chroma_path: ChromaDB存储路径
+            embedding_model: 嵌入模型名称
+            max_results: 最大返回结果数量
+        """
         self.max_results = max_results
-        # Initialize ChromaDB client
+        # 初始化ChromaDB客户端
         self.client = chromadb.PersistentClient(
             path=chroma_path,
-            settings=Settings(anonymized_telemetry=False)
+            settings=Settings(anonymized_telemetry=False)  # 禁用匿名遥测
         )
         
-        # Set up sentence transformer embedding function
+        # 设置句子转换器嵌入函数
         self.embedding_function = chromadb.utils.embedding_functions.SentenceTransformerEmbeddingFunction(
             model_name=embedding_model
         )
         
-        # Create collections for different types of data
-        self.course_catalog = self._create_collection("course_catalog")  # Course titles/instructors
-        self.course_content = self._create_collection("course_content")  # Actual course material
+        # 为不同类型的数据创建集合
+        self.course_catalog = self._create_collection("course_catalog")  # 课程标题/讲师
+        self.course_content = self._create_collection("course_content")  # 实际课程材料
     
     def _create_collection(self, name: str):
-        """Create or get a ChromaDB collection"""
+        """创建或获取ChromaDB集合"""
         return self.client.get_or_create_collection(
             name=name,
             embedding_function=self.embedding_function
@@ -64,29 +72,29 @@ class VectorStore:
                lesson_number: Optional[int] = None,
                limit: Optional[int] = None) -> SearchResults:
         """
-        Main search interface that handles course resolution and content search.
+        处理课程解析和内容搜索的主搜索接口
         
         Args:
-            query: What to search for in course content
-            course_name: Optional course name/title to filter by
-            lesson_number: Optional lesson number to filter by
-            limit: Maximum results to return
+            query: 在课程内容中搜索的内容
+            course_name: 可选的课程名称/标题过滤器
+            lesson_number: 可选的课程编号过滤器
+            limit: 最大返回结果数
             
         Returns:
-            SearchResults object with documents and metadata
+            包含文档和元数据的SearchResults对象
         """
-        # Step 1: Resolve course name if provided
+        # 步骤1: 如果提供了课程名称，解析课程名称
         course_title = None
         if course_name:
             course_title = self._resolve_course_name(course_name)
             if not course_title:
                 return SearchResults.empty(f"No course found matching '{course_name}'")
         
-        # Step 2: Build filter for content search
+        # 步骤2: 为内容搜索构建过滤器
         filter_dict = self._build_filter(course_title, lesson_number)
         
-        # Step 3: Search course content
-        # Use provided limit or fall back to configured max_results
+        # 步骤3: 搜索课程内容
+        # 使用提供的限制或回退到配置的最大结果数
         search_limit = limit if limit is not None else self.max_results
         
         try:
@@ -100,7 +108,7 @@ class VectorStore:
             return SearchResults.empty(f"Search error: {str(e)}")
     
     def _resolve_course_name(self, course_name: str) -> Optional[str]:
-        """Use vector search to find best matching course by name"""
+        """使用向量搜索找到最佳匹配的课程名称"""
         try:
             results = self.course_catalog.query(
                 query_texts=[course_name],
@@ -108,7 +116,7 @@ class VectorStore:
             )
             
             if results['documents'][0] and results['metadatas'][0]:
-                # Return the title (which is now the ID)
+                # 返回标题（现在作为ID）
                 return results['metadatas'][0][0]['title']
         except Exception as e:
             print(f"Error resolving course name: {e}")
@@ -116,11 +124,11 @@ class VectorStore:
         return None
     
     def _build_filter(self, course_title: Optional[str], lesson_number: Optional[int]) -> Optional[Dict]:
-        """Build ChromaDB filter from search parameters"""
+        """从搜索参数构建ChromaDB过滤器"""
         if not course_title and lesson_number is None:
             return None
             
-        # Handle different filter combinations
+        # 处理不同的过滤器组合
         if course_title and lesson_number is not None:
             return {"$and": [
                 {"course_title": course_title},

@@ -2,21 +2,21 @@ from typing import List, Dict, Optional
 from pydantic import BaseModel
 
 class Lesson(BaseModel):
-    """Represents a lesson within a course"""
-    lesson_number: int  # Sequential lesson number (1, 2, 3, etc.)
-    title: str         # Lesson title
-    lesson_link: Optional[str] = None  # URL link to the lesson
+    """表示课程中的一节课"""
+    lesson_number: int  # 顺序课程编号（1、2、3等）
+    title: str         # 课程标题
+    lesson_link: Optional[str] = None  # 课程链接URL
 
 class Course(BaseModel):
-    """Represents a complete course with its lessons"""
-    title: str                 # Full course title (used as unique identifier)
-    course_link: Optional[str] = None  # URL link to the course
-    instructor: Optional[str] = None  # Course instructor name (optional metadata)
-    lessons: List[Lesson] = [] # List of lessons in this course
+    """表示一个完整的课程及其所有课程"""
+    title: str                 # 完整课程标题（用作唯一标识符）
+    course_link: Optional[str] = None  # 课程链接URL
+    instructor: Optional[str] = None  # 课程讲师名称（可选元数据）
+    lessons: List[Lesson] = [] # 此课程中的课程列表
 
 class CourseChunk(BaseModel):
-    """Represents a text chunk from a course for vector storage"""
-    content: str                        # The actual text content
-    course_title: str                   # Which course this chunk belongs to
-    lesson_number: Optional[int] = None # Which lesson this chunk is from
-    chunk_index: int                    # Position of this chunk in the document
+    """表示来自课程的文本块，用于向量存储"""
+    content: str                        # 实际文本内容
+    course_title: str                   # 此块所属的课程标题
+    lesson_number: Optional[int] = None # 此块来自的课程编号
+    chunk_index: int                    # 此块在文档中的位置
